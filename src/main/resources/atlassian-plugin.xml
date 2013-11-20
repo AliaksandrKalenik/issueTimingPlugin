@@ -1,0 +1,75 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<atlassian-plugin key="${project.groupId}.${project.artifactId}" name="${project.name}" plugins-version="2">
+  <plugin-info>
+    <description>${project.description}</description>
+    <version>${project.version}</version>
+    <vendor name="${project.organization.name}" url="${project.organization.url}"/>
+    <param name="plugin-icon">images/pluginIcon.png</param>
+    <param name="plugin-logo">images/pluginLogo.png</param>
+  </plugin-info>
+  <!-- add our i18n resource -->
+  <resource type="i18n" name="i18n" location="issueTimingPlugin"/>
+  <!-- add our web resources -->
+  <web-resource key="issueTimingPlugin-resources" name="issueTimingPlugin Web Resources">
+    <dependency>com.atlassian.auiplugin:ajs</dependency>
+    <resource type="download" name="issueTimingPlugin.css" location="/css/issueTimingPlugin.css"/>
+    <resource type="download" name="issueTimingPlugin.js" location="/js/issueTimingPlugin.js"/>
+    <resource type="download" name="images/" location="/images"/>
+    <context>issueTimingPlugin</context>
+  </web-resource>
+  <!-- publish our component -->
+  <component key="myPluginComponent" class="com.vrpinc.jira.issueTimingPlugin.MyPluginComponentImpl" public="true">
+    <interface>com.vrpinc.jira.issueTimingPlugin.MyPluginComponent</interface>
+  </component>
+  <!-- import from the product container -->
+  <component-import key="applicationProperties" interface="com.atlassian.sal.api.ApplicationProperties"/>
+  <report name="Issue Timing Report" i18n-name-key="issue-timing-report.name" key="issue-timing-report" class="com.vrpinc.jira.issueTimingPlugin.reports.IssueTimingReport">
+    <description key="issue-timing-report.description">The Issue Timing Report Plugin</description>
+    <resource name="view" type="velocity" location="/templates/reports/issue-timing-report/view.vm"/>
+    <resource name="i18n" type="i18n" location="IssueTimingReport"/>
+    <label key="issue-timing-report.label"></label>
+
+    <properties>
+        <property>
+            <key>versionId</key>
+            <name>common.concepts.version</name>
+            <description>report.timetracking.version.description</description>
+            <type>select</type>
+            <values class="com.atlassian.jira.portal.VersionOptionalValuesGenerator"/>
+        </property>
+        <property>
+            <key>sortingOrder</key>
+            <name>report.timetracking.sortingorder</name>
+            <description>report.timetracking.sortingorder.description</description>
+            <type>select</type>
+            <values class="com.atlassian.jira.portal.SortingValuesGenerator"/>
+        </property>
+        <property>
+             <key>projectId</key>
+             <name>report.issuecreation.projectid.name</name>
+             <description>report.issuecreation.projectid.description</description>
+             <type>filterprojectpicker</type>
+         </property>
+         <property>
+             <key>startDate</key>
+             <name>report.issuecreation.startdate</name>
+             <description>report.issuecreation.startdate.description</description>
+             <type>date</type>
+         </property>
+         <property>
+             <key>endDate</key>
+             <name>report.issuecreation.enddate</name>
+             <description>report.issuecreation.enddate.description</description>
+             <type>date</type>
+         </property>
+         <property>
+             <key>interval</key>
+             <name>report.issuecreation.interval</name>
+             <description>report.issuecreation.interval.description</description>
+             <type>long</type>
+             <default>3</default>
+         </property>
+    </properties>
+  </report>
+</atlassian-plugin>
