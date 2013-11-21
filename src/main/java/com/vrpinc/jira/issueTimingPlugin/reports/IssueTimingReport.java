@@ -1,183 +1,109 @@
 package com.vrpinc.jira.issueTimingPlugin.reports;
 
-import com.atlassian.core.util.map.EasyMap;
-import com.atlassian.crowd.embedded.api.User;
-import com.atlassian.jira.bc.JiraServiceContext;
-import com.atlassian.jira.bc.JiraServiceContextImpl;
-import com.atlassian.jira.bc.filter.SearchRequestService;
+import com.atlassian.query.Query;
 import com.atlassian.jira.bc.issue.search.SearchService;
-import com.atlassian.jira.exception.PermissionException;
-import com.atlassian.jira.issue.CustomFieldManager;
 import com.atlassian.jira.issue.Issue;
-import com.atlassian.jira.issue.IssueFactory;
-import com.atlassian.jira.issue.index.IssueIndexManager;
-import com.atlassian.jira.issue.search.ReaderCache;
 import com.atlassian.jira.issue.search.SearchException;
-import com.atlassian.jira.issue.search.SearchProvider;
-import com.atlassian.jira.issue.search.SearchRequest;
-import com.atlassian.jira.issue.statistics.FilterStatisticsValuesGenerator;
-import com.atlassian.jira.issue.statistics.StatisticsMapper;
-import com.atlassian.jira.issue.statistics.StatsGroup;
-import com.atlassian.jira.issue.statistics.util.OneDimensionalDocIssueHitCollector;
+import com.atlassian.jira.issue.search.SearchResults;
+import com.atlassian.jira.jql.builder.JqlQueryBuilder;
 import com.atlassian.jira.plugin.report.impl.AbstractReport;
-import com.atlassian.jira.plugin.webfragment.model.JiraHelper;
 import com.atlassian.jira.security.JiraAuthenticationContext;
-import com.atlassian.jira.util.SimpleErrorCollection;
-import com.atlassian.jira.web.FieldVisibilityManager;
 import com.atlassian.jira.web.action.ProjectActionSupport;
-import com.atlassian.jira.web.bean.FieldVisibilityBean;
 import com.atlassian.jira.web.bean.PagerFilter;
-import com.atlassian.jira.web.util.OutlookDateManager;
-import com.atlassian.util.profiling.UtilTimerStack;
 import com.opensymphony.util.TextUtils;
 
-import org.apache.commons.lang.StringUtils;
 import org.apache.log4j.Logger;
-import org.apache.lucene.search.Collector;
 
+import java.util.Collections;
+import java.util.Iterator;
+import java.util.List;
 import java.util.Map;
+
  
 public class IssueTimingReport extends AbstractReport
 {
     private static final Logger log = Logger.getLogger(IssueTimingReport.class);
- 
-    private final SearchProvider searchProvider;
     private final JiraAuthenticationContext authenticationContext;
-    private final SearchRequestService searchRequestService;
-    private final IssueFactory issueFactory;
-    private final CustomFieldManager customFieldManager;
-    private final IssueIndexManager issueIndexManager;
     private final SearchService searchService;
-    private final FieldVisibilityManager fieldVisibilityManager;
-    private final ReaderCache readerCache;
-    private final OutlookDateManager outlookDateManager;
  
-    public IssueTimingReport(final SearchProvider searchProvider, final JiraAuthenticationContext authenticationContext,
-                                            final SearchRequestService searchRequestService, final IssueFactory issueFactory,
-                                            final CustomFieldManager customFieldManager, final IssueIndexManager issueIndexManager,
-                                            final SearchService searchService, final FieldVisibilityManager fieldVisibilityManager,
-                                            final ReaderCache readerCache, final OutlookDateManager outlookDateManager )
+    public IssueTimingReport(final JiraAuthenticationContext authenticationContext,
+                                            final SearchService searchService)
     {
-        this.searchProvider = searchProvider;
         this.authenticationContext = authenticationContext;
-        this.searchRequestService = searchRequestService;
-        this.issueFactory = issueFactory;
-        this.customFieldManager = customFieldManager;
-        this.issueIndexManager = issueIndexManager;
         this.searchService = searchService;
-        this.fieldVisibilityManager = fieldVisibilityManager;
-        this.readerCache = readerCache;
-        this.outlookDateManager =  outlookDateManager;
     }
- 
-    public StatsGroup getOptions(SearchRequest sr, User user, StatisticsMapper mapper) throws PermissionException
+    
+	public String generateReportHtml(ProjectActionSupport projectActionSupport, Map params) throws Exception {
+		String message ="<h1>Report\n ";
+		Long currentProjectId = getCurrentProjectId(params);
+		message = message.concat("currentProjectId: "+currentProjectId+" \n");
+		List<Issue> issues = this.getAllIssuesInCurrentProject(currentProjectId);
+		message = message.concat("summary: "+ issues.size()+ " ");
+		Iterator<Issue> it = issues.iterator();
+    	while(it.hasNext()){
+    		Issue current = it.next();
+	    	if(current.getTimeSpent()!=null){
+	    		long sec = current.getTimeSpent();
+	    		String result = formatTime(sec);
+	    		message = message.concat("Issue description: "+current.getSummary()+"\n");
+	    		message = message.concat("Issue time spent: "+result+"\n");
+    		}
+    	}
+    	message = message.concat("</h1>");
+    	return message;
+    }
+
+	private Long getCurrentProjectId(Map params) {
+		Long currentProjectId = Long.valueOf(TextUtils.htmlEncode((String) params.get("selectedProjectId")));
+		return currentProjectId;
+	}
+	
+    private String formatTime(final long sec) {
+		String result ="";
+    	final int secInMinute = 60;
+		final int secInHour = 3600;
+		final int secInDay = 86400;
+		final int secInMonth = 2592000;
+		final int secInYear = 31104000;
+		int years = (int) (sec/secInYear);
+		result = result.concat(isNotNull(result, years, "y "));
+		int month = (int) ((sec - years*secInYear)/secInMonth);
+		result = result.concat(isNotNull(result, month, "m"));
+		int day = (int) ((sec - years*secInYear - month*secInMonth)/secInDay);
+		result = result.concat(isNotNull(result, day, "d "));
+		int hour = (int) ((sec - years*secInYear - month*secInMonth - day*secInDay)/secInHour);
+		result = result.concat(isNotNull(result, hour, "h "));
+		int minute = (int) ((sec - years*secInYear - month*secInMonth - day*secInDay - hour*secInHour)/secInMinute);
+		result = result.concat(isNotNull(result, minute, "m "));
+		int second = (int) ((sec - years*secInYear - month*secInMonth - day*secInDay - hour*secInHour - minute*secInMinute));
+		result = result.concat(isNotNull(result, second, "s"));
+    	return result;
+	}
+
+	private String isNotNull(String result, int years, String f) {
+		
+		if(Math.floor(years)!=0){
+			return years+f;
+		}
+		return "";
+	}
+
+	public List<Issue> getAllIssuesInCurrentProject(Long currentProjectId)
     {
- 
+        final  JqlQueryBuilder builder = JqlQueryBuilder.newBuilder();
+        builder.where().project(currentProjectId);
+        Query query = (Query) builder.buildQuery();
         try
         {
-            return searchMapIssueKeys(sr, user, mapper);
+            final SearchResults results = searchService.search(authenticationContext.getLoggedInUser(),
+                     query, PagerFilter.getUnlimitedFilter());
+            return results.getIssues();
         }
         catch (SearchException e)
         {
-            log.error("Exception rendering " + this.getClass().getName() + ".  Exception " + e.getMessage(), e);
-            return null;
+        	
         }
-    }
- 
-    public StatsGroup searchMapIssueKeys(SearchRequest request, User searcher, StatisticsMapper mapper)
-            throws SearchException
-    {
-        try
-        {
-            UtilTimerStack.push("Search Count Map");
-            StatsGroup statsGroup = new StatsGroup(mapper);
-            Collector hitCollector = new OneDimensionalDocIssueHitCollector(
-            		mapper.getDocumentConstant(), statsGroup,
-                    issueIndexManager.getIssueSearcher().getIndexReader(), issueFactory,
-                    fieldVisibilityManager, readerCache,null,null);
-            searchProvider.searchAndSort((request != null) ? request.getQuery() : null, searcher, hitCollector, PagerFilter.getUnlimitedFilter());
-            return statsGroup;
-        }
-        finally
-        {
-            UtilTimerStack.pop("Search Count Map");
-        }
-    }
- 
-    public String generateReportHtml(ProjectActionSupport action, Map params) throws Exception
-    {
-    	
-        String filterId = (String) params.get("filterid");
-        if (filterId == null)
-        {
-            log.error("Single Level Group By Report run without a project selected (JRA-5042): params=" + params);
-            return "<span class='errMsg'>No search filter has been selected. Please "
-                    + "<a href=\"IssueNavigator.jspa?reset=Update&amp;pid="
-                    + TextUtils.htmlEncode((String) params.get("selectedProjectId"))
-                    + "\">create one</a>, and re-run this report. See also "
-                    + "<a href=\"http://jira.atlassian.com/browse/JRA-5042\">JRA-5042</a></span>";
-        }
-        String mapperName = (String) params.get("mapper");
-        final StatisticsMapper mapper = new FilterStatisticsValuesGenerator().getStatsMapper(mapperName);
-        final JiraServiceContext ctx = new JiraServiceContextImpl(authenticationContext.getLoggedInUser());
-        final SearchRequest request = searchRequestService.getFilter(ctx, new Long(filterId));
- 
-        final Map startingParams;
-        try
-        {
-            startingParams = EasyMap.build(
-                    "action", action,
-                    "statsGroup", getOptions(request, authenticationContext.getLoggedInUser(), mapper),
-                    "searchRequest", request,
-                    "mapperType", mapperName,
-                    "customFieldManager", customFieldManager,
-                    "fieldVisibility", new FieldVisibilityBean(),
-                    "searchService", searchService,
-                    "portlet", this);
-            startingParams.put("outlookDate", outlookDateManager.getOutlookDate(authenticationContext.getLocale()));
-            return descriptor.getHtml("view", startingParams);
-        }
-        catch (PermissionException e)
-        {
-            log.error(e, e);
-            return null;
-        }
-    }
- 
-    public void validate(ProjectActionSupport action, Map params)
-    {
-        super.validate(action, params);
-        String filterId = (String) params.get("filterid");
-        if (StringUtils.isEmpty(filterId))
-        {
-            action.addError("filterid", action.getText("report.singlelevelgroupby.filter.is.required"));
-        }
-        else
-        {
-            validateFilterId(action,filterId);
-        }
-    }
- 
-    private void validateFilterId(ProjectActionSupport action, String filterId)
-    {
-        try
-        {
-            JiraServiceContextImpl serviceContext = new JiraServiceContextImpl(
-                    action.getLoggedInUser(), new SimpleErrorCollection());
-            SearchRequest searchRequest = searchRequestService.getFilter(serviceContext, new Long(filterId));
-            if (searchRequest == null)
-            {
-                action.addErrorMessage(action.getText("report.error.no.filter"));
-            }
-        }
-        catch (NumberFormatException nfe)
-        {
-            action.addError("filterId", action.getText("report.error.filter.id.not.a.number", filterId));
-        }
-    }
-    
-    public void smth(JiraHelper jiraHelper){
-    	Issue currentIssue = (Issue) jiraHelper.getContextParams().get("issue");
-    	System.out.println(currentIssue.getTimeSpent());
+        
+        return Collections.emptyList();
     }
 }
