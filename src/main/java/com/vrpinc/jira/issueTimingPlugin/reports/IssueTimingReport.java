@@ -25,32 +25,20 @@ public class IssueTimingReport extends AbstractReport
     private static final Logger log = Logger.getLogger(IssueTimingReport.class);
     private final JiraAuthenticationContext authenticationContext;
     private final SearchService searchService;
- 
+    private final String issueTimespentNull = "0s";
     public IssueTimingReport(final JiraAuthenticationContext authenticationContext,
                                             final SearchService searchService)
     {
         this.authenticationContext = authenticationContext;
         this.searchService = searchService;
     }
-    
-	public String generateReportHtml(ProjectActionSupport projectActionSupport, Map params) throws Exception {
-		String message ="<h1>Report\n ";
+
+	public String generateReportHtml(ProjectActionSupport projectActionSupport, Map params){
 		Long currentProjectId = getCurrentProjectId(params);
-		message = message.concat("currentProjectId: "+currentProjectId+" \n");
 		List<Issue> issues = this.getAllIssuesInCurrentProject(currentProjectId);
-		message = message.concat("summary: "+ issues.size()+ " ");
-		Iterator<Issue> it = issues.iterator();
-    	while(it.hasNext()){
-    		Issue current = it.next();
-	    	if(current.getTimeSpent()!=null){
-	    		long sec = current.getTimeSpent();
-	    		String result = formatTime(sec);
-	    		message = message.concat("Issue description: "+current.getSummary()+"\n");
-	    		message = message.concat("Issue time spent: "+result+"\n");
-    		}
-    	}
-    	message = message.concat("</h1>");
+		String message = new String(issuesToTable(issues));
     	return message;
+    	
     }
 
 	private Long getCurrentProjectId(Map params) {
@@ -78,6 +66,7 @@ public class IssueTimingReport extends AbstractReport
 		int second = (int) ((sec - years*secInYear - month*secInMonth - day*secInDay - hour*secInHour - minute*secInMinute));
 		result = result.concat(isNotNull(result, second, "s"));
     	return result;
+		
 	}
 
 	private String isNotNull(String result, int years, String f) {
@@ -101,9 +90,40 @@ public class IssueTimingReport extends AbstractReport
         }
         catch (SearchException e)
         {
-        	
+        	log.error("Error when get issues", e);
         }
         
         return Collections.emptyList();
     }
+	
+	private String issuesToTable(List<Issue> issues){
+		String tableHtml = "<table border =\"2\"  align=\"center\" cellpadding=\"7\" cellspacing=\"7\">"
+				+ "<tr>"
+			+"<th align=\"left\">Time spent</th>"
+			+"<th align=\"left\">Issue Summary</th>"
+		+"</tr>";
+		Iterator<Issue> it = issues.iterator();
+    	while(it.hasNext()){
+    		Issue current = it.next();
+	    	if(current.getTimeSpent()!=null){
+	    		long sec = current.getTimeSpent();
+	    		String result = formatTime(sec);
+	    		tableHtml = tableHtml.concat(addRawToTable(current.getSummary(), result));
+    		}
+	    	else{
+	    		tableHtml = tableHtml.concat(addRawToTable(current.getSummary(), this.issueTimespentNull));
+	    	}
+    	}
+    	tableHtml = tableHtml.concat("</table>");
+		return tableHtml;
+	}
+
+	private String addRawToTable(String summary, String result) {
+		String rawHtml = "";
+		rawHtml = rawHtml.concat("<tr>");
+		rawHtml = rawHtml.concat("<td >"+result+"</td>");
+		rawHtml = rawHtml.concat("<td >"+summary+"</td>");
+		rawHtml = rawHtml.concat("</tr>");
+		return rawHtml;
+	}
 }
