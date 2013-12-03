@@ -1,0 +1,33 @@
+#enable_html_escaping()
+<table border ="2"  align="left" cellpadding="7" cellspacing="7">
+	<tr>
+		<th align=\"left\">Time spent</th>
+		<th align=\"left\">Issue Summary</th>
+	</tr>
+#foreach ($issue in $issues)
+	<tr>
+		#if($issue.getTimeSpent())
+			<td><a href="$th.getIssueWorklogReportURL($projectId, $issue.getId())">$th.formatTime($issue.getTimeSpent())</a></td>
+		#else
+			<td><a href="$url">0s</a></td>
+		#end
+		<td><a href="$th.getIssuesPathUrl($issue)">$issue.getSummary()</a></td>
+	</tr>
+#end
+</table>
+<div style = "float: left; min-width: 200px; max-width: 400px; margin-left: 50px; padding: 5px; padding-right: 20px; border: solid 1px black">
+#if($issueId == -1)
+	<p align="center" style = "font: bold 150% serif"> Worklog </p>	
+#else
+	<p align="center" style = "font: bold 150% serif">$th.getIssueById($issues, $issueId).getSummary()</p>
+#end
+#if($worklogs)
+	#foreach($worklog in $worklogs)
+		<p><font style = "font: bold 120% serif">Date: </font>$worklog.getUpdated().toString()</p>
+		<p><font style = "font: bold 120% serif">Duration: </font>$th.formatTime($worklog.getTimeSpent())</p>
+		<p><font style = "font: bold 120% serif">Comment: </font>$worklog.getComment()</p>
+		<p><font style = "font: bold 120% serif">Author: </font>$worklog.getUpdateAuthor()</p>
+		<br />
+	#end 
+#end
+</div>
