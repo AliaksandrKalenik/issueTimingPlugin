@@ -26,17 +26,20 @@ import java.util.List;
 import java.util.Map;
 
  
-public class IssueTimingReport extends AbstractReport
-{
-    private static final Logger log = Logger.getLogger(IssueTimingReport.class);
+public class IssueTimingReport extends AbstractReport{
+    
+	private static final Logger log = Logger.getLogger(IssueTimingReport.class);
     private final JiraAuthenticationContext authenticationContext;
     private final SearchService searchService;
-    private Map params;
-    private final String issueTimespentNull = "0s";
-    private final String issuePathUrl = "/browse/";
+    public static final String IF_ISSUE_ID_IS_NULL = "Worklog";
+    public static final String ISSUE_PATH_URL = "/browse/";
+    public static final long ISSUE_ID_IF_NOT_SELECT = -1;
+    public static final String ISSUE_SUMMARY_TIME_IS_NULL = "0s";
 	private WorklogManager worlogManager;
+	
     public IssueTimingReport(final JiraAuthenticationContext authenticationContext,
-                                            final SearchService searchService, WorklogManager worklogManager)
+                                            final SearchService searchService, 
+                                            WorklogManager worklogManager)
     {
     	this.worlogManager = worklogManager;
         this.authenticationContext = authenticationContext;
@@ -44,22 +47,22 @@ public class IssueTimingReport extends AbstractReport
     }
 
 	public String generateReportHtml(ProjectActionSupport projectActionSupport, Map params) throws PermissionException{
-		this.params = params;
 		Long currentProjectId = getCurrentProjectId(params);
 		List<Issue> issues = this.getAllIssuesInCurrentProject(currentProjectId);
 		Long issueId = getSelectedIssueId(params);
-		List<Worklog> worklogs = null;		
-		if(issueId != -1){
+		
+		 //worklogs = null;		
+		//if(issueId != null){
 			//worklogs = getWorklog(issues.get(0));
-			worklogs = getWorklog(issues, issueId);
-		}
+		List<Worklog> worklogs = getWorklog(issues, issueId);
+		//}
 		final Map startingParams;
 		startingParams = EasyMap.build(
                 "projectId", currentProjectId,
 				"issues", issues,
                 "issueId", issueId,
                 "worklogs", worklogs,
-                "th", this); 
+                "issueTimingReport", this); 
 		return descriptor.getHtml("view", startingParams);
     	
     }
@@ -71,7 +74,7 @@ public class IssueTimingReport extends AbstractReport
 		try{
 			issueId = Long.valueOf(TextUtils.htmlEncode((String) params.get("issueId")));
 		}catch(Exception e){
-			issueId = (long) -1;
+			issueId = ISSUE_ID_IF_NOT_SELECT;
 		}
 		return issueId;
 	}
@@ -81,36 +84,6 @@ public class IssueTimingReport extends AbstractReport
 		return currentProjectId;
 	}
 	
-    public String formatTime(final long sec) {
-		String result ="";
-    	final int secInMinute = 60;
-		final int secInHour = 3600;
-		final int secInDay = 86400;
-		final int secInMonth = 2592000;
-		final int secInYear = 31104000;
-		int years = (int) (sec/secInYear);
-		result = result.concat(isNotNull(result, years, "y "));
-		int month = (int) ((sec - years*secInYear)/secInMonth);
-		result = result.concat(isNotNull(result, month, "m"));
-		int day = (int) ((sec - years*secInYear - month*secInMonth)/secInDay);
-		result = result.concat(isNotNull(result, day, "d "));
-		int hour = (int) ((sec - years*secInYear - month*secInMonth - day*secInDay)/secInHour);
-		result = result.concat(isNotNull(result, hour, "h "));
-		int minute = (int) ((sec - years*secInYear - month*secInMonth - day*secInDay - hour*secInHour)/secInMinute);
-		result = result.concat(isNotNull(result, minute, "m "));
-		int second = (int) ((sec - years*secInYear - month*secInMonth - day*secInDay - hour*secInHour - minute*secInMinute));
-		result = result.concat(isNotNull(result, second, "s"));
-    	return result;
-		
-	}
-
-	private String isNotNull(String result, int years, String f) {
-		
-		if(Math.floor(years)!=0){
-			return years+f;
-		}
-		return "";
-	}
 
 	public List<Issue> getAllIssuesInCurrentProject(Long currentProjectId)
     {
@@ -131,32 +104,7 @@ public class IssueTimingReport extends AbstractReport
         return Collections.emptyList();
     }
 	
-	private String issuesToTable(List<Issue> issues){
-		String tableHtml = "<table border =\"2\"  align=\"center\" cellpadding=\"7\" cellspacing=\"7\">"
-				+ "<tr>"
-			+"<th align=\"left\">Worklog</th>"
-			+"<th align=\"left\">Time spent</th>"
-			+"<th align=\"left\">Issue Summary</th>"
-		+"</tr>";
-		Iterator<Issue> it = issues.iterator();
-    	while(it.hasNext()){
-    		Issue current = it.next();
-    		String link = getIssuesPathUrl(current);
-    		List<Worklog> worklog = getWorklog(current);
-    		link = worklog.get(0).getUpdated().toString();
-    		worklog.get(0).getUpdateAuthorFullName();
-	    	if(current.getTimeSpent()!=null){
-	    		long sec = current.getTimeSpent();
-	    		String result = formatTime(sec);
-	    		tableHtml = tableHtml.concat(addRawToTable(link,current.getSummary(), result));
-    		}
-	    	else{
-	    		tableHtml = tableHtml.concat(addRawToTable(link, current.getSummary(), this.issueTimespentNull));
-	    	}
-    	}
-    	tableHtml = tableHtml.concat("</table>");
-		return tableHtml;
-	}
+
 	
 	public Issue getIssueById(List<Issue> issues,Long issueId){
 		Iterator<Issue> issueIterator = issues.iterator();
@@ -170,6 +118,9 @@ public class IssueTimingReport extends AbstractReport
 	}
 	
 	private List<Worklog> getWorklog(List<Issue> issues, Long issueId) {
+		if(issueId == ISSUE_ID_IF_NOT_SELECT){
+			return null;
+		}
 		Issue issue = this.getIssueById(issues, issueId);
 		return this.getWorklog(issue);
 	}
@@ -188,19 +139,73 @@ public class IssueTimingReport extends AbstractReport
 	
 	public String getIssuesPathUrl(Issue issue) {
 		String link = ComponentManager.getInstance().getApplicationProperties().getString("jira.baseurl");
-		link = link.concat(this.issuePathUrl);
+		link = link.concat(this.ISSUE_PATH_URL);
 		link = link.concat(issue.getKey());
 		return link;
 	}
 
-	private String addRawToTable(String link, String summary, String result) {
-		String rawHtml = "";
-		rawHtml = rawHtml.concat("<tr>");
-		rawHtml = rawHtml.concat("<td >"+link+"</td>");
-		rawHtml = rawHtml.concat("<td >"+result+"</td>");
-		rawHtml = rawHtml.concat("<td ><a href=\""+link+"\" target=\"_blank\">"+summary+"</a></td>");
-		rawHtml = rawHtml.concat("</tr>");
-		return rawHtml;
+	
+	public String getSummaryTime(Issue issue){
+		if(issue.getTimeSpent() != null){
+			return TimeFormatter.formatTime(issue.getTimeSpent());
+		}
+		return ISSUE_SUMMARY_TIME_IS_NULL;
+	}
+	
+	public String getWorklogDate(Worklog worklog){
+		return worklog.getUpdated().toString();
+	}
+	
+	public String getWorklogDuration(Worklog worklog){
+		return TimeFormatter.formatTime(worklog.getTimeSpent());
+	}
+	
+	public String getWorklogComment(Worklog worklog){
+		return worklog.getComment();
+	}
+	
+	public String getWorklogAuthor(Worklog worklog){
+		return worklog.getUpdateAuthor();
+	}
+	
+	public String getIssueSummary(List<Issue> issues, Long issueId){
+		if(issueId == ISSUE_ID_IF_NOT_SELECT){
+			return this.IF_ISSUE_ID_IS_NULL;
+		}
+		return this.getIssueById(issues, issueId).getSummary();
+	}
+	
+	static class TimeFormatter{
+		
+	    public static String formatTime(final long sec) {
+			String result ="";
+	    	final int secInMinute = 60;
+			final int secInHour = 3600;
+			final int secInDay = 86400;
+			final int secInMonth = 2592000;
+			final int secInYear = 31104000;
+			int years = (int) (sec/secInYear);
+			result = result.concat(isNotNull(result, years, "y "));
+			int month = (int) ((sec - years*secInYear)/secInMonth);
+			result = result.concat(isNotNull(result, month, "m"));
+			int day = (int) ((sec - years*secInYear - month*secInMonth)/secInDay);
+			result = result.concat(isNotNull(result, day, "d "));
+			int hour = (int) ((sec - years*secInYear - month*secInMonth - day*secInDay)/secInHour);
+			result = result.concat(isNotNull(result, hour, "h "));
+			int minute = (int) ((sec - years*secInYear - month*secInMonth - day*secInDay - hour*secInHour)/secInMinute);
+			result = result.concat(isNotNull(result, minute, "m "));
+			int second = (int) ((sec - years*secInYear - month*secInMonth - day*secInDay - hour*secInHour - minute*secInMinute));
+			result = result.concat(isNotNull(result, second, "s"));
+	    	return result;
+			
+		}
+	
+		private static String isNotNull(String result, int years, String f) {
+			if(Math.floor(years)!=0){
+				return years+f;
+			}
+			return "";
+		}
 	}
 
 }

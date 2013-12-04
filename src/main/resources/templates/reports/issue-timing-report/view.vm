@@ -6,28 +6,20 @@
 	</tr>
 #foreach ($issue in $issues)
 	<tr>
-		#if($issue.getTimeSpent())
-			<td><a href="$th.getIssueWorklogReportURL($projectId, $issue.getId())">$th.formatTime($issue.getTimeSpent())</a></td>
-		#else
-			<td><a href="$url">0s</a></td>
-		#end
-		<td><a href="$th.getIssuesPathUrl($issue)">$issue.getSummary()</a></td>
+		<td><a href="$issueTimingReport.getIssueWorklogReportURL($projectId, $issue.getId())">$issueTimingReport.getSummaryTime($issue)</a></td>
+		<td><a href="$issueTimingReport.getIssuesPathUrl($issue)" target="_blank">$issue.getSummary()</a></td>
 	</tr>
 #end
 </table>
-<div style = "float: left; min-width: 200px; max-width: 400px; margin-left: 50px; padding: 5px; padding-right: 20px; border: solid 1px black">
-#if($issueId == -1)
-	<p align="center" style = "font: bold 150% serif"> Worklog </p>	
-#else
-	<p align="center" style = "font: bold 150% serif">$th.getIssueById($issues, $issueId).getSummary()</p>
-#end
-#if($worklogs)
-	#foreach($worklog in $worklogs)
-		<p><font style = "font: bold 120% serif">Date: </font>$worklog.getUpdated().toString()</p>
-		<p><font style = "font: bold 120% serif">Duration: </font>$th.formatTime($worklog.getTimeSpent())</p>
-		<p><font style = "font: bold 120% serif">Comment: </font>$worklog.getComment()</p>
-		<p><font style = "font: bold 120% serif">Author: </font>$worklog.getUpdateAuthor()</p>
-		<br />
-	#end 
-#end
+<div style = "float: left; min-height: 50px; min-width: 200px; max-width: 400px; margin-left: 50px; padding: 5px; padding-right: 20px; border: solid 1px black">
+	<p align="center" style = "font: bold 150% serif">$issueTimingReport.getIssueSummary($issues, $issueId)</p>	
+	#if($worklogs)
+		#foreach($worklog in $worklogs)
+			<p><font style = "font: bold 120% serif">Date: </font>$issueTimingReport.getWorklogDate($worklog)</p>
+			<p><font style = "font: bold 120% serif">Duration: </font>$issueTimingReport.getWorklogDuration($worklog)</p>
+			<p><font style = "font: bold 120% serif">Comment: </font>$issueTimingReport.getWorklogComment($worklog)</p>
+			<p><font style = "font: bold 120% serif">Author: </font>$issueTimingReport.getWorklogAuthor($worklog)</p>
+			<br />
+		#end 
+	#end
 </div>
